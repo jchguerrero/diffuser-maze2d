@@ -3,3 +3,9 @@
 .ipynb_checkpoints/
 */.ipynb_checkpoints/*
 *-checkpoint.ipynb
+# Python compiled files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.py[cod]
