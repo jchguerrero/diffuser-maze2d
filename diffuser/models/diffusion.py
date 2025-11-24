@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from torch import nn
-import pdb
+from tqdm import tqdm
 
 import diffuser.utils as utils
 from .helpers import (
@@ -144,17 +144,16 @@ class GaussianDiffusion(nn.Module):
 
         if return_diffusion: diffusion = [x]
 
-        progress = utils.Progress(self.n_timesteps) if verbose else utils.Silent()
-        for i in reversed(range(0, self.n_timesteps)):
+        iterator = reversed(range(0, self.n_timesteps))
+        if verbose:
+            iterator = tqdm(iterator, total=self.n_timesteps, desc='Sampling', leave=True)
+
+        for i in iterator:
             timesteps = torch.full((batch_size,), i, device=device, dtype=torch.long)
             x = self.p_sample(x, cond, timesteps)
             x = apply_conditioning(x, cond, self.action_dim)
-
-            progress.update({'t': i})
-
+            
             if return_diffusion: diffusion.append(x)
-
-        progress.close()
 
         if return_diffusion:
             return x, torch.stack(diffusion, dim=1)

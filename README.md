@@ -1,109 +1,89 @@
-# Planning with Diffusion &nbsp;&nbsp; [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1YajKhu-CUIGBJeQPehjVPJcK_b38a8Nc?usp=sharing)
+# Diffuser for Maze2D Navigation
 
+A diffusion model implementation for trajectory planning in 2D maze environments using the D4RL maze2d datasets.
 
-Training and visualizing of diffusion models from [Planning with Diffusion for Flexible Behavior Synthesis](https://diffusion-planning.github.io/).
-This branch has the Maze2D experiments and will be merged into main shortly.
+## Overview
 
-<p align="center">
-    <img src="https://diffusion-planning.github.io/images/diffuser-card.png" width="60%" title="Diffuser model">
-</p>
+This project trains a diffusion probabilistic model to generate feasible trajectories for navigation in maze environments. The model learns from offline trajectory data and can generate collision-free paths from start to goal positions.
 
-## Quickstart
+## Features
 
-Load a pretrained diffusion model and sample from it in your browser with [scripts/diffuser-sample.ipynb](https://colab.research.google.com/drive/1YajKhu-CUIGBJeQPehjVPJcK_b38a8Nc?usp=sharing).
-
+- ✅ Diffusion model training for maze2d
+- ✅ Trajectory generation and visualization
+- ✅ Jupyter notebook and Google Colab support
+- ✅ GPU-accelerated training
+- ✅ Checkpoint saving and loading
 
 ## Installation
 
-```
+### Requirements
+
+- Python 3.8
+- CUDA-capable GPU
+- MuJoCo 2.1.0
+
+### Setup
+
+```bash
+# Clone repository
+git clone https://github.com/YOUR_USERNAME/diffuser-maze2d.git
+cd diffuser-maze2d
+
+# Create conda environment
 conda env create -f environment.yml
-conda activate diffusion
+conda activate diffuser_maze2d
+
+# Install the package
 pip install -e .
 ```
 
-## Usage
+## Quick Start
 
-Train a diffusion model with:
-```
-python scripts/train.py --config config.maze2d --dataset maze2d-large-v1
-```
+### Training
 
-The default hyperparameters are listed in [`config/maze2d.py`](config/maze2d.py).
-You can override any of them with runtime flags, eg `--batch_size 64`.
+**Jupyter Notebook:**
 
-Plan using the diffusion model with:
-```
-python scripts/plan_maze2d.py --config config.maze2d --dataset maze2d-large-v1
+```bash
+jupyter notebook train_diffuser.ipynb
 ```
 
+### Configuration
 
-## Docker
+Key training parameters (in `config/maze2d.py`):
 
-1. Build the container:
-```
-docker build -f azure/Dockerfile . -t diffuser
-```
+- `horizon`: Trajectory length (default: 128)
+- `n_train_steps`: Total training steps (default: 50000)
+- `batch_size`: Batch size (default: 16-32)
+- `n_diffusion_steps`: Diffusion timesteps (default: 64)
 
-2. Test the container:
-```
-docker run -it --rm --gpus all \
-    --mount type=bind,source=$PWD,target=/home/code \
-    --mount type=bind,source=$HOME/.d4rl,target=/root/.d4rl \
-    diffuser \
-    bash -c \
-    "export PYTHONPATH=$PYTHONPATH:/home/code && \
-    python /home/code/scripts/train.py --dataset hopper-medium-expert-v2 --logbase logs/docker"
-```
+## Datasets
 
+Uses D4RL maze2d environments:
 
-## Running on Azure
+- `maze2d-umaze-v1`: Small U-shaped maze
+- `maze2d-medium-v1`: Medium-sized maze
+- `maze2d-large-v1`: Large complex maze
 
-#### Setup
+## Citation
 
-1. Launching jobs on Azure requires one more python dependency:
-```
-pip install git+https://github.com/JannerM/doodad.git@janner
-```
+Based on the Diffuser framework:
 
-2. Tag the image built in [the previous section](#Docker) and push it to Docker Hub:
-```
-export DOCKER_USERNAME=$(docker info | sed '/Username:/!d;s/.* //')
-docker tag diffuser ${DOCKER_USERNAME}/diffuser:latest
-docker image push ${DOCKER_USERNAME}/diffuser
-```
-
-3. Update [`azure/config.py`](azure/config.py), either by modifying the file directly or setting the relevant [environment variables](azure/config.py#L47-L52). To set the `AZURE_STORAGE_CONNECTION` variable, navigate to the `Access keys` section of your storage account. Click `Show keys` and copy the `Connection string`.
-
-4. Download [`azcopy`](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10): `./azure/download.sh`
-
-#### Usage
-
-Launch training jobs with `python azure/launch.py`. The launch script takes no command-line arguments; instead, it launches a job for every combination of hyperparameters in [`params_to_sweep`](azure/launch_train.py#L36-L38).
-
-
-#### Viewing results
-
-To rsync the results from the Azure storage container, run `./azure/sync.sh`.
-
-To mount the storage container:
-1. Create a blobfuse config with `./azure/make_fuse_config.sh`
-2. Run `./azure/mount.sh` to mount the storage container to `~/azure_mount`
-
-To unmount the container, run `sudo umount -f ~/azure_mount; rm -r ~/azure_mount`
-
-
-## Reference
 ```
 @inproceedings{janner2022diffuser,
-  title = {Planning with Diffusion for Flexible Behavior Synthesis},
-  author = {Michael Janner and Yilun Du and Joshua B. Tenenbaum and Sergey Levine},
-  booktitle = {International Conference on Machine Learning},
-  year = {2022},
+  title={Planning with Diffusion for Flexible Behavior Synthesis},
+  author={Janner, Michael and Du, Yilun and Tenenbaum, Joshua and Levine, Sergey},
+  booktitle={International Conference on Machine Learning},
+  year={2022}
 }
 ```
 
+## License
 
-## Acknowledgements
+MIT License
 
-The diffusion model implementation is based on Phil Wang's [denoising-diffusion-pytorch](https://github.com/lucidrains/denoising-diffusion-pytorch) repo.
-The organization of this repo and remote launcher is based on the [trajectory-transformer](https://github.com/jannerm/trajectory-transformer) repo.
+## Acknowledgments
+
+- Original Diffuser implementation by [jannerm](https://github.com/jannerm/diffuser)
+- D4RL dataset by [Farama Foundation](https://github.com/Farama-Foundation/d4rl)
+- Course: ENME 618 - Methods in Uncertainty Quantification and Machine Learning for Scientific Engineering
+  Applications, University of Calgary
