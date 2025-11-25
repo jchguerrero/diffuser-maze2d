@@ -9,3 +9,4 @@
 *.pyd
 __pycache__/
 *.py[cod]
+logs/
