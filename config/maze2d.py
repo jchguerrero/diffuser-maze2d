@@ -93,7 +93,8 @@ base = {
         'conditional': False,
 
         ## loading
-        'diffusion_loadpath': 'f:diffusion/H{horizon}_T{n_diffusion_steps}',
+        # 'diffusion_loadpath': 'f:diffusion/H{horizon}_T{n_diffusion_steps}',
+        'diffusion_loadpath': 'diffusion/H128_T64',
         'diffusion_epoch': 'latest',
     },
 
