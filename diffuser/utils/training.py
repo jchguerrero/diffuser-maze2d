@@ -4,6 +4,8 @@ import numpy as np
 import torch
 import einops
 import pdb
+from glob import glob
+from os.path import join 
 
 from .arrays import batch_to_device, to_np, to_device, apply_dict
 from .timer import Timer
@@ -87,6 +89,7 @@ class Trainer(object):
 
         self.reset_parameters()
         self.step = 0
+        self.load()
 
     def reset_parameters(self):
         self.ema_model.load_state_dict(self.model.state_dict())
@@ -136,31 +139,56 @@ class Trainer(object):
             self.step += 1
 
     def save(self, epoch):
-        '''
-            saves model and ema to disk;
-            syncs to storage bucket if a bucket is specified
-        '''
-        data = {
-            'step': self.step,
-            'model': self.model.state_dict(),
-            'ema': self.ema_model.state_dict()
-        }
-        savepath = os.path.join(self.logdir, f'state_{epoch}.pt')
-        torch.save(data, savepath)
-        print(f'[ utils/training ] Saved model to {savepath}')
-        if self.bucket is not None:
-            sync_logs(self.logdir, bucket=self.bucket, background=self.save_parallel)
+            '''
+                saves model and ema to disk;
+                syncs to storage bucket if a bucket is specified
+            '''
+            data = {
+                'step': self.step,
+                'model': self.model.state_dict(),
+                'ema': self.ema_model.state_dict(),
+                'opt': self.optimizer.state_dict(),  # ADD THIS LINE
+            }
+            savepath = os.path.join(self.logdir, f'state_{epoch}.pt')
+            torch.save(data, savepath)
+            print(f'[ utils/training ] Saved model to {savepath}')
+            if self.bucket is not None:
+                sync_logs(self.logdir, bucket=self.bucket, background=self.save_parallel)
 
-    def load(self, epoch):
-        '''
-            loads model and ema from disk
-        '''
-        loadpath = os.path.join(self.logdir, f'state_{epoch}.pt')
-        data = torch.load(loadpath)
-
-        self.step = data['step']
-        self.model.load_state_dict(data['model'])
-        self.ema_model.load_state_dict(data['ema'])
+    def load(self, epoch=None):
+            """Load checkpoint from disk"""
+            # If no epoch specified, find latest
+            if epoch is None or epoch == 'latest':
+                data = sorted(glob(join(self.logdir, 'state_*.pt')))
+                if len(data) > 0:
+                    loadpath = data[-1]
+                    epoch_num = int(loadpath.split('_')[-1].split('.')[0])
+                    print(f'[ utils/training ] Loading latest checkpoint: {loadpath} (step {epoch_num})')
+                else:
+                    print('[ utils/training ] No checkpoint found, starting fresh')
+                    return
+            else:
+                # Load specific epoch
+                loadpath = join(self.logdir, f'state_{epoch}.pt')
+                if not os.path.exists(loadpath):
+                    print(f'[ utils/training ] Checkpoint not found: {loadpath}')
+                    return
+                print(f'[ utils/training ] Loading checkpoint: {loadpath}')
+            
+            # Load the checkpoint data
+            data = torch.load(loadpath, map_location='cpu')
+            
+            # Restore model state
+            self.step = data['step']
+            self.model.load_state_dict(data['model'])
+            self.ema_model.load_state_dict(data['ema'])
+            
+            # Restore optimizer state if available
+            if 'opt' in data:
+                self.optimizer.load_state_dict(data['opt'])
+                print(f'[ utils/training ] Successfully resumed from step {self.step} (with optimizer state)')
+            else:
+                print(f'[ utils/training ] Successfully resumed from step {self.step} (without optimizer state)')
 
     #-----------------------------------------------------------------------------#
     #--------------------------------- rendering ---------------------------------#
