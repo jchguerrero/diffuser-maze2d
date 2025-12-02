@@ -117,9 +117,10 @@ print('✓')
 #--------------------------------- main loop ---------------------------------#
 #-----------------------------------------------------------------------------#
 
-n_epochs = int(args.n_train_steps // args.n_steps_per_epoch)
+n_epochs = args.n_train_steps // args.n_steps_per_epoch
+start_epoch = trainer.step // args.n_steps_per_epoch
 
-for i in range(n_epochs):
+for i in range(start_epoch, n_epochs):
     print(f'Epoch {i} / {n_epochs} | {args.savepath}')
     trainer.train(n_train_steps=args.n_steps_per_epoch)
 

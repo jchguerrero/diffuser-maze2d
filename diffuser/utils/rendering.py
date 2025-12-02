@@ -271,9 +271,9 @@ class MuJoCoRenderer:
 #-----------------------------------------------------------------------------#
 
 MAZE_BOUNDS = {
-    'maze2d-umaze-v1': (0, 5, 0, 5),
+    'maze2d-umaze-v1':  (0, 5, 0, 5),
     'maze2d-medium-v1': (0, 8, 0, 8),
-    'maze2d-large-v1': (0, 9, 0, 12)
+    'maze2d-large-v1':  (0, 9, 0, 12),
 }
 
 class MazeRenderer:
@@ -289,13 +289,57 @@ class MazeRenderer:
         plt.clf()
         fig = plt.gcf()
         fig.set_size_inches(5, 5)
-        plt.imshow(self._background * .5,
-            extent=self._extent, cmap=plt.cm.binary, vmin=0, vmax=1)
 
+        # background maze
+        plt.imshow(
+            self._background * 0.5,
+            extent=self._extent,
+            cmap=plt.cm.binary,
+            vmin=0,
+            vmax=1,
+        )
+
+        # trajectory
         path_length = len(observations)
-        colors = plt.cm.jet(np.linspace(0,1,path_length))
-        plt.plot(observations[:,1], observations[:,0], c='black', zorder=10)
-        plt.scatter(observations[:,1], observations[:,0], c=colors, zorder=20)
+        colors = plt.cm.jet(np.linspace(0, 1, path_length))
+        plt.plot(observations[:, 1], observations[:, 0], c='black', zorder=10)
+        plt.scatter(observations[:, 1], observations[:, 0], c=colors, zorder=20)
+
+        if conditions is not None:
+            cond = np.array(conditions, dtype=float).reshape(-1, 2)
+            ax = plt.gca()
+
+            # START (index 0)
+            if len(cond) >= 1:
+                sx = cond[0, 1]
+                sy = cond[0, 0]
+                # START: green square
+                ax.scatter(
+                    sx, sy,
+                    marker='s',
+                    s=260,
+                    c='lime',
+                    edgecolors='darkgreen',
+                    linewidths=2,
+                    zorder=30,
+                )
+
+            # GOAL (index 1)
+            if len(cond) >= 2:
+                gx = cond[1, 1]
+                gy = cond[1, 0]
+                # GOAL: red star
+                ax.scatter(
+                    gx, gy,
+                    marker='*',
+                    s=280,
+                    c='red',
+                    edgecolors='darkred',
+                    linewidths=2,
+                    zorder=30,
+                )
+                    
+
         plt.axis('off')
         plt.title(title)
         img = plot2img(fig, remove_margins=self._remove_margins)
@@ -304,7 +348,7 @@ class MazeRenderer:
     def composite(self, savepath, paths, ncol=5, **kwargs):
         '''
             savepath : str
-            observations : [ n_paths x horizon x 2 ]
+            paths    : [ n_paths x horizon x obs_dim ]
         '''
         assert len(paths) % ncol == 0, 'Number of paths must be divisible by number of columns'
 
@@ -315,8 +359,12 @@ class MazeRenderer:
         images = np.stack(images, axis=0)
 
         nrow = len(images) // ncol
-        images = einops.rearrange(images,
-            '(nrow ncol) H W C -> (nrow H) (ncol W) C', nrow=nrow, ncol=ncol)
+        images = einops.rearrange(
+            images,
+            '(nrow ncol) H W C -> (nrow H) (ncol W) C',
+            nrow=nrow,
+            ncol=ncol,
+        )
         imageio.imsave(savepath, images)
         print(f'Saved {len(paths)} samples to: {savepath}')
 
@@ -335,20 +383,36 @@ class Maze2dRenderer(MazeRenderer):
     def renders(self, observations, conditions=None, **kwargs):
         bounds = MAZE_BOUNDS[self.env_name]
 
-        observations = observations + .5
+        observations = np.array(observations, dtype=float)
+        observations = observations.copy()
+
+        # always treat first two dims as (x, y) position
+        pos = observations[:, :2] + 0.5
+
         if len(bounds) == 2:
             _, scale = bounds
-            observations /= scale
+            pos /= scale
+            iscale = jscale = scale
         elif len(bounds) == 4:
             _, iscale, _, jscale = bounds
-            observations[:, 0] /= iscale
-            observations[:, 1] /= jscale
+            pos[:, 0] /= iscale
+            pos[:, 1] /= jscale
         else:
             raise RuntimeError(f'Unrecognized bounds for {self.env_name}: {bounds}')
 
+        # replace positions with normalized ones
+        observations = pos
+
+        # normalize start/goal conditions the same way
+        cond_norm = None
         if conditions is not None:
-            conditions /= scale
-        return super().renders(observations, conditions, **kwargs)
+            cond = np.array(conditions, dtype=float).reshape(-1, 2)
+            cond = cond + 0.5
+            cond[:, 0] /= iscale
+            cond[:, 1] /= jscale
+            cond_norm = cond
+
+        return super().renders(observations, conditions=cond_norm, **kwargs)
 
 #-----------------------------------------------------------------------------#
 #---------------------------------- rollouts ---------------------------------#
@@ -383,5 +447,5 @@ def rollout_from_state(env, state, actions):
             break
     for i in range(len(observations), len(actions)+1):
         ## if terminated early, pad with zeros
-        observations.append( np.zeros(obs.size) )
+        observations.append(np.zeros(obs.size))
     return np.stack(observations)

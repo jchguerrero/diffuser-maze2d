@@ -147,7 +147,7 @@ class Trainer(object):
                 'step': self.step,
                 'model': self.model.state_dict(),
                 'ema': self.ema_model.state_dict(),
-                'opt': self.optimizer.state_dict(),  # ADD THIS LINE
+                'opt': self.optimizer.state_dict(),
             }
             savepath = os.path.join(self.logdir, f'state_{epoch}.pt')
             torch.save(data, savepath)
@@ -159,8 +159,9 @@ class Trainer(object):
             """Load checkpoint from disk"""
             # If no epoch specified, find latest
             if epoch is None or epoch == 'latest':
-                data = sorted(glob(join(self.logdir, 'state_*.pt')))
+                data = glob(join(self.logdir, 'state_*.pt'))
                 if len(data) > 0:
+                    data = sorted(data, key=lambda x: int(x.split('_')[-1].split('.')[0]))
                     loadpath = data[-1]
                     epoch_num = int(loadpath.split('_')[-1].split('.')[0])
                     print(f'[ utils/training ] Loading latest checkpoint: {loadpath} (step {epoch_num})')
